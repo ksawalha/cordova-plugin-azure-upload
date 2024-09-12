@@ -1,0 +1,3 @@
+dependencies {
+    implementation 'com.microsoft.azure:azure-storage-android:8.7.0'
+}
