@@ -12,11 +12,6 @@ import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
-import com.microsoft.azure.storage.CloudBlobClient;
-import com.microsoft.azure.storage.CloudStorageAccount;
-import com.microsoft.azure.storage.blob.CloudBlobContainer;
-import com.microsoft.azure.storage.blob.CloudBlockBlob;
-
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
@@ -28,7 +23,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -129,14 +123,17 @@ public class AzureUpload extends CordovaPlugin {
 
     private void uploadToAzure(String fileName, byte[] fileData, String sasToken, String originalName, String postId) {
         try {
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(fileData);
-            CloudBlobClient blobClient = new CloudBlobClient(new URI(STORAGE_URL + "?" + sasToken));
-            CloudBlobContainer container = blobClient.getContainerReference("arabicschool");
-            CloudBlockBlob blob = container.getBlockBlobReference(fileName);
-            blob.upload(inputStream, fileData.length);
+            String url = STORAGE_URL + fileName + "?" + sasToken;
+            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setRequestMethod("PUT");
+            conn.setRequestProperty("Content-Type", "application/octet-stream");
+            conn.setDoOutput(true);
+            conn.getOutputStream().write(fileData);
+            conn.getInputStream(); // To ensure data is sent and received
+            conn.disconnect();
 
             // Commit to server
-            commitUpload(postId, STORAGE_URL + fileName, originalName, blob.getProperties().getContentType());
+            commitUpload(postId, STORAGE_URL + fileName, originalName, "application/octet-stream");
 
             // Show notification
             showNotification("Upload Complete", "File " + originalName + " uploaded successfully.");
@@ -160,7 +157,8 @@ public class AzureUpload extends CordovaPlugin {
 
             conn.setDoOutput(true);
             conn.getOutputStream().write(jsonBody.toString().getBytes("UTF-8"));
-            conn.getInputStream();
+            conn.getInputStream(); // To ensure data is sent and received
+            conn.disconnect();
         } catch (Exception e) {
             Log.e("AzureUpload", "Error committing upload: " + e.getMessage());
         }
