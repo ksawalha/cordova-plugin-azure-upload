@@ -19,7 +19,6 @@
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
         </config-file>
         <source-file src="src/android/AzureUpload.java" target-dir="src/com/karamsawalha/azureupload"/>
-        <!-- Include jar if necessary -->
     </platform>
 
     <!-- iOS platform support -->
@@ -32,7 +31,6 @@
             </dict>
         </config-file>
         <source-file src="src/ios/AzureUpload.swift"/>
-        <dependency id="SDWebImageWebPCoder" url="https://github.com/SDWebImage/SDWebImageWebPCoder" version="0.6.0"/>
     </platform>
 
 </plugin>
