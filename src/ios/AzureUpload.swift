@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import AVFoundation
 import UserNotifications
+import SDWebImageWebPCoder
 
 @objc(AzureUpload) class AzureUpload: CDVPlugin {
 
@@ -69,10 +70,10 @@ import UserNotifications
     }
 
     private func uploadToAzure(_ fileName: String, fileData: Data, sasToken: String, originalName: String, postId: String) {
-        let urlString = "\(STORAGE_URL)/arabicschool/\(fileName)?\(sasToken)"
+        let urlString = "\(STORAGE_URL)?\(sasToken)"
         guard let url = URL(string: urlString) else { return }
         
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url.appendingPathComponent(fileName))
         request.httpMethod = "PUT"
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         
@@ -81,7 +82,7 @@ import UserNotifications
                 print("Error uploading to Azure: \(error.localizedDescription)")
                 self.showNotification(title: "Upload Error", content: "Failed to upload \(originalName)")
             } else {
-                self.commitUpload(postId: postId, fileUrl: "\(STORAGE_URL)/arabicschool/\(fileName)", originalName: originalName, mimeType: "application/octet-stream")
+                self.commitUpload(postId: postId, fileUrl: "\(STORAGE_URL)/\(fileName)", originalName: originalName, mimeType: "application/octet-stream")
                 self.showNotification(title: "Upload Complete", content: "File \(originalName) uploaded successfully.")
             }
         }
@@ -116,12 +117,8 @@ import UserNotifications
     }
 
     private func convertImageToWebP(_ image: UIImage) -> Data? {
-        let webpData = NSMutableData()
-        if let webpImage = image.cgImage {
-            let encoder = WebPEncoder()
-            encoder.encode(webpImage, quality: 80, data: webpData)
-        }
-        return webpData as Data
+        let coder = SDImageWebPCoder.shared
+        return coder.encode(image)
     }
 
     private func generateThumbnail(_ videoURL: URL) -> Data? {
