@@ -12,18 +12,15 @@
         <clobbers target="cordova.plugins.azureUpload"/>
     </js-module>
 
-    <!-- Android platform support -->
     <platform name="android">
         <config-file target="AndroidManifest.xml" parent="/*">
             <uses-permission android:name="android.permission.INTERNET"/>
             <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
         </config-file>
-        <source-file src="src/android/AzureUpload.java" target-dir="src/com/karamsawalha/azureupload"/>
-        <!-- Remove the SDK framework reference -->
+        <source-file src="src/android/AzureUpload.java" target-dir="src/com/arabicschool/azureupload"/>
     </platform>
 
-    <!-- iOS platform support -->
     <platform name="ios">
         <config-file target="*-Info.plist" parent="NSAppTransportSecurity">
             <key>NSAppTransportSecurity</key>
@@ -34,5 +31,4 @@
         </config-file>
         <source-file src="src/ios/AzureUpload.swift"/>
     </platform>
-
 </plugin>
