@@ -16,6 +16,8 @@ import UserNotifications
             let files = command.arguments[2] as? [[String: Any]]
         else {
             // Handle invalid arguments
+            let pluginResult = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: "Invalid arguments")
+            self.commandDelegate.send(pluginResult, callbackId: command.callbackId)
             return
         }
 
@@ -53,6 +55,7 @@ import UserNotifications
     private func uploadImage(fileName: String, binaryData: String, sasToken: String, originalName: String, postId: String) {
         guard let imageData = Data(base64Encoded: binaryData), let image = UIImage(data: imageData), let pngData = image.pngData() else {
             // Handle image data errors
+            showNotification(title: "Upload Error", content: "Failed to process image data for \(originalName)")
             return
         }
         uploadToAzure(fileName: fileName, fileData: pngData, sasToken: sasToken, originalName: originalName, postId: postId)
@@ -61,6 +64,7 @@ import UserNotifications
     private func uploadVideo(fileName: String, binaryData: String, thumbnail: String, sasToken: String, originalName: String, postId: String) {
         guard let videoData = Data(base64Encoded: binaryData) else {
             // Handle video data errors
+            showNotification(title: "Upload Error", content: "Failed to process video data for \(originalName)")
             return
         }
 
@@ -74,12 +78,14 @@ import UserNotifications
             }
         } catch {
             print("Error saving video data: \(error.localizedDescription)")
+            showNotification(title: "Upload Error", content: "Failed to save video data for \(originalName)")
         }
     }
 
     private func uploadFile(fileName: String, binaryData: String, sasToken: String, originalName: String, postId: String) {
         guard let fileData = Data(base64Encoded: binaryData) else {
             // Handle file data errors
+            showNotification(title: "Upload Error", content: "Failed to process file data for \(originalName)")
             return
         }
         uploadToAzure(fileName: fileName, fileData: fileData, sasToken: sasToken, originalName: originalName, postId: postId)
@@ -87,7 +93,10 @@ import UserNotifications
 
     private func uploadToAzure(fileName: String, fileData: Data, sasToken: String, originalName: String, postId: String) {
         let urlString = "\(storageURL)\(fileName)?\(sasToken)"
-        guard let url = URL(string: urlString) else { return }
+        guard let url = URL(string: urlString) else {
+            showNotification(title: "Upload Error", content: "Invalid URL for \(originalName)")
+            return
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
@@ -107,7 +116,10 @@ import UserNotifications
 
     private func commitUpload(postId: String, fileUrl: String, originalName: String, mimeType: String) {
         let urlString = "https://personal-fjlz3d21.outsystemscloud.com/uploads/rest/a/commit?postid=\(postId)"
-        guard let url = URL(string: urlString) else { return }
+        guard let url = URL(string: urlString) else {
+            showNotification(title: "Commit Error", content: "Invalid commit URL for \(originalName)")
+            return
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -173,7 +185,6 @@ import UserNotifications
             content.title = title
             content.body = content
             content.sound = UNNotificationSound.default
-
             let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
             UNUserNotificationCenter.current().add(request) { error in
                 if let error = error {
