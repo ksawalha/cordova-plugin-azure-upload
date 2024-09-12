@@ -69,10 +69,10 @@ import UserNotifications
     }
 
     private func uploadToAzure(_ fileName: String, fileData: Data, sasToken: String, originalName: String, postId: String) {
-        let urlString = "\(STORAGE_URL)?\(sasToken)"
+        let urlString = "\(STORAGE_URL)/arabicschool/\(fileName)?\(sasToken)"
         guard let url = URL(string: urlString) else { return }
         
-        var request = URLRequest(url: url.appendingPathComponent(fileName))
+        var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         
@@ -81,7 +81,7 @@ import UserNotifications
                 print("Error uploading to Azure: \(error.localizedDescription)")
                 self.showNotification(title: "Upload Error", content: "Failed to upload \(originalName)")
             } else {
-                self.commitUpload(postId: postId, fileUrl: "\(STORAGE_URL)/\(fileName)", originalName: originalName, mimeType: "application/octet-stream")
+                self.commitUpload(postId: postId, fileUrl: "\(STORAGE_URL)/arabicschool/\(fileName)", originalName: originalName, mimeType: "application/octet-stream")
                 self.showNotification(title: "Upload Complete", content: "File \(originalName) uploaded successfully.")
             }
         }
