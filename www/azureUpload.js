@@ -1,7 +1,5 @@
-var azureUpload = {
-    uploadFiles: function (params, successCallback, errorCallback) {
-        cordova.exec(successCallback, errorCallback, "AzureUpload", "uploadFiles", [params]);
-    }
-};
+var exec = require('cordova/exec');
 
-module.exports = azureUpload;
+exports.uploadFiles = function (postId, sasToken, files, successCallback, errorCallback) {
+    exec(successCallback, errorCallback, "AzureUpload", "uploadFiles", [postId, sasToken, files]);
+};
