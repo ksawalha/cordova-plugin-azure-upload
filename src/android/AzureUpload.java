@@ -1,37 +1,32 @@
 package com.karamsawalha.azureupload;
 
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
-import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
-
-import androidx.core.app.NotificationCompat;
-
+import android.widget.Toast;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class AzureUpload extends CordovaPlugin {
 
-    private final String STORAGE_URL = "https://arabicschool.blob.core.windows.net/";
-    private NotificationManager notificationManager;
-    private String channelId = "azure_upload_channel";
+    private static final String STORAGE_URL = "https://arabicschool.blob.core.windows.net/";
+    private static final String TAG = "AzureUpload";
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
@@ -39,15 +34,14 @@ public class AzureUpload extends CordovaPlugin {
             String postId = args.getString(0);
             String sasToken = args.getString(1);
             JSONArray files = args.getJSONArray(2);
-            this.uploadFiles(postId, sasToken, files, callbackContext);
+            uploadFiles(postId, sasToken, files, callbackContext);
             return true;
         }
         return false;
     }
 
     private void uploadFiles(String postId, String sasToken, JSONArray files, CallbackContext callbackContext) {
-        ExecutorService executor = Executors.newFixedThreadPool(4);
-        createNotificationChannel();
+        ExecutorService executorService = Executors.newFixedThreadPool(files.length());
 
         for (int i = 0; i < files.length(); i++) {
             try {
@@ -56,121 +50,118 @@ public class AzureUpload extends CordovaPlugin {
                 String originalName = file.getString("originalname");
                 String mimeType = file.getString("mimetype");
                 String binaryData = file.getString("binarydata");
-                String thumbnail = file.getString("thumbnail");
+                String thumbnailName = file.has("thumbnail") ? file.getString("thumbnail") : "";
 
                 if (mimeType.startsWith("image")) {
-                    executor.submit(() -> uploadImage(fileName, binaryData, sasToken, originalName, postId));
+                    executorService.execute(() -> uploadImage(fileName, binaryData, sasToken, originalName, postId));
                 } else if (mimeType.startsWith("video")) {
-                    executor.submit(() -> uploadVideo(fileName, binaryData, thumbnail, sasToken, originalName, postId));
+                    executorService.execute(() -> uploadVideo(fileName, binaryData, thumbnailName, sasToken, originalName, postId));
                 } else {
-                    executor.submit(() -> uploadFile(fileName, binaryData, sasToken, originalName, postId));
+                    executorService.execute(() -> uploadFile(fileName, binaryData, sasToken, originalName, postId));
                 }
             } catch (JSONException e) {
-                Log.e("AzureUpload", "Error parsing file JSON: " + e.getMessage());
+                Log.e(TAG, "Error processing file upload: " + e.getMessage());
             }
         }
 
-        executor.shutdown();
-        callbackContext.success("Upload completed for postId: " + postId);
+        executorService.shutdown();
+        callbackContext.success("File uploads initiated.");
     }
 
     private void uploadImage(String fileName, String binaryData, String sasToken, String originalName, String postId) {
         try {
             byte[] imageData = Base64.decode(binaryData, Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.length);
-
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
-            byte[] pngData = out.toByteArray();
-
-            uploadToAzure(fileName, pngData, sasToken, originalName, postId);
+            uploadToAzure(fileName, imageData, sasToken, originalName, postId);
         } catch (Exception e) {
-            Log.e("AzureUpload", "Error uploading image: " + e.getMessage());
+            Log.e(TAG, "Error uploading image: " + e.getMessage());
         }
     }
 
     private void uploadVideo(String fileName, String binaryData, String thumbnailName, String sasToken, String originalName, String postId) {
         try {
+            // Decode base64 video data
             byte[] videoData = Base64.decode(binaryData, Base64.DEFAULT);
+            
+            // Write the video data to a temporary file
+            File tempVideoFile = File.createTempFile("video", ".mp4", cordova.getContext().getCacheDir());
+            FileOutputStream fos = new FileOutputStream(tempVideoFile);
+            fos.write(videoData);
+            fos.close();
+
+            // Upload the video to Azure
             uploadToAzure(fileName, videoData, sasToken, originalName, postId);
 
+            // Use MediaMetadataRetriever to generate a thumbnail from the temporary file
             MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-            ByteArrayInputStream videoInputStream = new ByteArrayInputStream(videoData);
-            retriever.setDataSource(videoInputStream.getFD());
+            retriever.setDataSource(tempVideoFile.getAbsolutePath());
 
             Bitmap bitmap = retriever.getFrameAtTime(0);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
             byte[] thumbnailData = out.toByteArray();
 
+            // Upload the thumbnail to Azure
             uploadToAzure(thumbnailName, thumbnailData, sasToken, originalName, postId);
+
+            // Delete the temporary video file after use
+            tempVideoFile.delete();
         } catch (Exception e) {
-            Log.e("AzureUpload", "Error uploading video: " + e.getMessage());
+            Log.e(TAG, "Error uploading video: " + e.getMessage());
         }
     }
 
     private void uploadFile(String fileName, String binaryData, String sasToken, String originalName, String postId) {
-        byte[] fileData = Base64.decode(binaryData, Base64.DEFAULT);
-        uploadToAzure(fileName, fileData, sasToken, originalName, postId);
+        try {
+            byte[] fileData = Base64.decode(binaryData, Base64.DEFAULT);
+            uploadToAzure(fileName, fileData, sasToken, originalName, postId);
+        } catch (Exception e) {
+            Log.e(TAG, "Error uploading file: " + e.getMessage());
+        }
     }
 
     private void uploadToAzure(String fileName, byte[] fileData, String sasToken, String originalName, String postId) {
         try {
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(fileData);
-            URL url = new URL(STORAGE_URL + fileName + "?" + sasToken);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("PUT");
-            conn.setRequestProperty("Content-Type", "application/octet-stream");
-            conn.setDoOutput(true);
-            conn.getOutputStream().write(fileData);
-            conn.getInputStream();
+            String urlString = STORAGE_URL + fileName + "?" + sasToken;
+            URL url = new URL(urlString);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoOutput(true);
+            connection.setRequestMethod("PUT");
+            connection.setRequestProperty("Content-Type", "application/octet-stream");
 
-            commitUpload(postId, STORAGE_URL + fileName, originalName, "application/octet-stream");
-            showNotification("Upload Complete", "File " + originalName + " uploaded successfully.");
+            connection.getOutputStream().write(fileData);
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_CREATED || responseCode == HttpURLConnection.HTTP_OK) {
+                commitUpload(postId, STORAGE_URL + fileName, originalName, "application/octet-stream");
+            } else {
+                Log.e(TAG, "Error uploading to Azure, response code: " + responseCode);
+            }
         } catch (Exception e) {
-            Log.e("AzureUpload", "Error uploading to Azure: " + e.getMessage());
-            showNotification("Upload Error", "Failed to upload " + originalName);
+            Log.e(TAG, "Error uploading to Azure: " + e.getMessage());
         }
     }
 
     private void commitUpload(String postId, String fileUrl, String originalName, String mimeType) {
         try {
-            URL url = new URL("https://personal-fjlz3d21.outsystemscloud.com/uploads/rest/a/commit?postid=" + postId);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            URL commitUrl = new URL("https://personal-fjlz3d21.outsystemscloud.com/uploads/rest/a/commit?postid=" + postId);
+            HttpURLConnection connection = (HttpURLConnection) commitUrl.openConnection();
+            connection.setDoOutput(true);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json");
 
             JSONObject jsonBody = new JSONObject();
             jsonBody.put("URL", fileUrl);
             jsonBody.put("originalname", originalName);
             jsonBody.put("filemime", mimeType);
 
-            conn.setDoOutput(true);
-            conn.getOutputStream().write(jsonBody.toString().getBytes("UTF-8"));
-            conn.getInputStream();
+            connection.getOutputStream().write(jsonBody.toString().getBytes());
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                Log.e(TAG, "Error committing upload, response code: " + responseCode);
+            }
         } catch (Exception e) {
-            Log.e("AzureUpload", "Error committing upload: " + e.getMessage());
+            Log.e(TAG, "Error committing upload: " + e.getMessage());
         }
-    }
-
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = "Azure Uploads";
-            String description = "Notifications for file uploads to Azure";
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
-            NotificationChannel channel = new NotificationChannel(channelId, name, importance);
-            channel.setDescription(description);
-            notificationManager = cordova.getActivity().getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
-        }
-    }
-
-    private void showNotification(String title, String content) {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(cordova.getContext(), channelId)
-                .setSmallIcon(android.R.drawable.ic_menu_upload)
-                .setContentTitle(title)
-                .setContentText(content)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-        notificationManager.notify((int) System.currentTimeMillis(), builder.build());
     }
 }
