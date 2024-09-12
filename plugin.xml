@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin id="cordova-plugin-azure-upload" version="1.0.0" xmlns="http://apache.org/cordova/ns/plugins" xmlns:android="http://schemas.android.com/apk/res/android">
-    <name>Azure Upload Plugin</name>
-    <description>Cordova Plugin to handle chunked file uploads to Azure Blob Storage for com.karamsawalha.arabicschool</description>
-    <license>MIT</license>
-    <keywords>azure, upload, cordova, chunked</keywords>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        id="cordova-plugin-azure-upload"
+        version="1.0.0">
+
+    <name>AzureUploadPlugin</name>
+    <description>Cordova Plugin to Upload Files to Azure Blob Storage in Chunked Mode</description>
+    <license>Apache 2.0</license>
+    <keywords>azure blob upload, chunked, images, video, thumbnails</keywords>
+    <author>karamsawalha</author>
+    <js-module src="www/azureUpload.js" name="AzureUpload">
+        <clobbers target="cordova.plugins.azureUpload"/>
+    </js-module>
+
+    <!-- Android platform support -->
     <platform name="android">
-        <config-file target="config.xml" parent="/*">
+        <config-file target="res/xml/config.xml" parent="/*">
             <feature name="AzureUpload">
                 <param name="android-package" value="com.karamsawalha.azureupload.AzureUpload"/>
             </feature>
@@ -13,11 +22,14 @@
         <source-file src="src/android/AzureUpload.java" target-dir="src/com/karamsawalha/azureupload"/>
     </platform>
 
+    <!-- iOS platform support -->
     <platform name="ios">
-        <source-file src="src/ios/AzureUpload.swift" framework="true"/>
+        <config-file target="config.xml" parent="/*">
+            <feature name="AzureUpload">
+                <param name="ios-package" value="AzureUpload"/>
+            </feature>
+        </config-file>
+        <source-file src="src/ios/AzureUpload.swift" />
     </platform>
 
-    <js-module src="www/azureUpload.js" name="AzureUpload">
-        <clobbers target="azureUpload"/>
-    </js-module>
 </plugin>
