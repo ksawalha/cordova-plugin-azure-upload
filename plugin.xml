@@ -14,22 +14,26 @@
 
     <!-- Android platform support -->
     <platform name="android">
-        <config-file target="res/xml/config.xml" parent="/*">
-            <feature name="AzureUpload">
-                <param name="android-package" value="com.karamsawalha.azureupload.AzureUpload"/>
-            </feature>
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
         </config-file>
         <source-file src="src/android/AzureUpload.java" target-dir="src/com/karamsawalha/azureupload"/>
+        <framework src="libs/azure-storage-android-8.7.0.jar"/>
     </platform>
 
     <!-- iOS platform support -->
     <platform name="ios">
-        <config-file target="config.xml" parent="/*">
-            <feature name="AzureUpload">
-                <param name="ios-package" value="AzureUpload"/>
-            </feature>
+        <config-file target="*-Info.plist" parent="NSAppTransportSecurity">
+            <key>NSAppTransportSecurity</key>
+            <dict>
+                <key>NSAllowsArbitraryLoads</key>
+                <true/>
+            </dict>
         </config-file>
-        <source-file src="src/ios/AzureUpload.swift" />
+        <source-file src="src/ios/AzureUpload.swift" framework="Cordova"/>
+        <pod name="WebP" spec="~> 0.6.0"/>
     </platform>
 
 </plugin>
