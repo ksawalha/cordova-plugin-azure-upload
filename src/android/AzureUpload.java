@@ -76,11 +76,9 @@ public class AzureUpload extends CordovaPlugin {
 
     private void uploadImage(String fileName, String binaryData, String sasToken, String originalName, String postId) {
         try {
-            // Decode base64 image
             byte[] imageData = Base64.decode(binaryData, Base64.DEFAULT);
             Bitmap bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.length);
 
-            // Compress to WebP
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.WEBP, 80, out);
             byte[] webpData = out.toByteArray();
@@ -93,14 +91,11 @@ public class AzureUpload extends CordovaPlugin {
 
     private void uploadVideo(String fileName, String binaryData, String thumbnailName, String sasToken, String originalName, String postId) {
         try {
-            // Upload video file
             byte[] videoData = Base64.decode(binaryData, Base64.DEFAULT);
             uploadToAzure(fileName, videoData, sasToken, originalName, postId);
 
-            // Generate video thumbnail
             MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-            byte[] videoByteArray = Base64.decode(binaryData, Base64.DEFAULT);
-            ByteArrayInputStream videoInputStream = new ByteArrayInputStream(videoByteArray);
+            ByteArrayInputStream videoInputStream = new ByteArrayInputStream(videoData);
             retriever.setDataSource(videoInputStream.getFD());
 
             Bitmap bitmap = retriever.getFrameAtTime(0);
@@ -108,9 +103,7 @@ public class AzureUpload extends CordovaPlugin {
             bitmap.compress(Bitmap.CompressFormat.WEBP, 80, out);
             byte[] thumbnailData = out.toByteArray();
 
-            // Upload thumbnail
             uploadToAzure(thumbnailName, thumbnailData, sasToken, originalName, postId);
-
         } catch (Exception e) {
             Log.e("AzureUpload", "Error uploading video: " + e.getMessage());
         }
@@ -123,19 +116,16 @@ public class AzureUpload extends CordovaPlugin {
 
     private void uploadToAzure(String fileName, byte[] fileData, String sasToken, String originalName, String postId) {
         try {
-            String url = STORAGE_URL + fileName + "?" + sasToken;
-            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(fileData);
+            URL url = new URL(STORAGE_URL + fileName + "?" + sasToken);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("PUT");
             conn.setRequestProperty("Content-Type", "application/octet-stream");
             conn.setDoOutput(true);
             conn.getOutputStream().write(fileData);
-            conn.getInputStream(); // To ensure data is sent and received
-            conn.disconnect();
+            conn.getInputStream();
 
-            // Commit to server
             commitUpload(postId, STORAGE_URL + fileName, originalName, "application/octet-stream");
-
-            // Show notification
             showNotification("Upload Complete", "File " + originalName + " uploaded successfully.");
         } catch (Exception e) {
             Log.e("AzureUpload", "Error uploading to Azure: " + e.getMessage());
@@ -157,8 +147,7 @@ public class AzureUpload extends CordovaPlugin {
 
             conn.setDoOutput(true);
             conn.getOutputStream().write(jsonBody.toString().getBytes("UTF-8"));
-            conn.getInputStream(); // To ensure data is sent and received
-            conn.disconnect();
+            conn.getInputStream();
         } catch (Exception e) {
             Log.e("AzureUpload", "Error committing upload: " + e.getMessage());
         }
