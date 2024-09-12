@@ -19,9 +19,6 @@
       "ios"
     ]
   },
-  "dependencies": {
-    "SDWebImageWebPCoder": "0.6.0"
-  },
   "engines": {
     "cordova": ">=10.0.0"
   },
