@@ -30,7 +30,7 @@
                 <true/>
             </dict>
         </config-file>
-        <source-file src="src/ios/AzureUpload.swift"/>
+        <source-file src="src/ios/AzureUpload.swift" framework="true"/>
     </platform>
 
 </plugin>
