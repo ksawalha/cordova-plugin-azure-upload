@@ -80,10 +80,10 @@ public class AzureUpload extends CordovaPlugin {
             Bitmap bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.length);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.WEBP, 80, out);
-            byte[] webpData = out.toByteArray();
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+            byte[] pngData = out.toByteArray();
 
-            uploadToAzure(fileName, webpData, sasToken, originalName, postId);
+            uploadToAzure(fileName, pngData, sasToken, originalName, postId);
         } catch (Exception e) {
             Log.e("AzureUpload", "Error uploading image: " + e.getMessage());
         }
@@ -100,7 +100,7 @@ public class AzureUpload extends CordovaPlugin {
 
             Bitmap bitmap = retriever.getFrameAtTime(0);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.WEBP, 80, out);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
             byte[] thumbnailData = out.toByteArray();
 
             uploadToAzure(thumbnailName, thumbnailData, sasToken, originalName, postId);
