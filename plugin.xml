@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
         id="cordova-plugin-azure-upload"
         version="1.0.0">
@@ -19,7 +20,7 @@
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
         </config-file>
         <source-file src="src/android/AzureUpload.java" target-dir="src/com/karamsawalha/azureupload"/>
-        <framework src="src/android/libs/azure-storage-android-8.7.0.jar"/>
+        <!-- Remove the SDK framework reference -->
     </platform>
 
     <!-- iOS platform support -->
@@ -32,6 +33,7 @@
             </dict>
         </config-file>
         <source-file src="src/ios/AzureUpload.swift"/>
+        <!-- Ensure WebP pod is included for iOS image conversion -->
         <pod name="WebP" spec="~> 0.6.0"/>
     </platform>
 
