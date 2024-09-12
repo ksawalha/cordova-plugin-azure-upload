@@ -2,12 +2,12 @@ import Foundation
 import UIKit
 import AVFoundation
 import UserNotifications
-import SDWebImageWebPCoder
 
 @objc(AzureUpload) class AzureUpload: CDVPlugin {
 
     let STORAGE_URL = "https://arabicschool.blob.core.windows.net/"
-    
+    let channelId = "azure_upload_channel"
+
     @objc(uploadFiles:) 
     func uploadFiles(command: CDVInvokedUrlCommand) {
         let postId = command.arguments[0] as! String
@@ -43,8 +43,8 @@ import SDWebImageWebPCoder
     private func uploadImage(_ fileName: String, binaryData: String, sasToken: String, originalName: String, postId: String) {
         if let imageData = Data(base64Encoded: binaryData) {
             if let image = UIImage(data: imageData) {
-                if let webpData = convertImageToWebP(image) {
-                    uploadToAzure(fileName, fileData: webpData, sasToken: sasToken, originalName: originalName, postId: postId)
+                if let pngData = image.pngData() {
+                    uploadToAzure(fileName, fileData: pngData, sasToken: sasToken, originalName: originalName, postId: postId)
                 }
             }
         }
@@ -54,11 +54,14 @@ import SDWebImageWebPCoder
         if let videoData = Data(base64Encoded: binaryData) {
             uploadToAzure(fileName, fileData: videoData, sasToken: sasToken, originalName: originalName, postId: postId)
             
-            if let videoURL = FileManager.default.temporaryDirectory.appendingPathComponent("tempVideo.mp4") {
-                try? videoData.write(to: videoURL)
-                if let thumbnailData = generateThumbnail(videoURL) {
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("tempVideo.mp4")
+            do {
+                try videoData.write(to: tempURL)
+                if let thumbnailData = generateThumbnail(from: tempURL) {
                     uploadToAzure(thumbnail, fileData: thumbnailData, sasToken: sasToken, originalName: originalName, postId: postId)
                 }
+            } catch {
+                print("Error saving video data: \(error.localizedDescription)")
             }
         }
     }
@@ -70,10 +73,10 @@ import SDWebImageWebPCoder
     }
 
     private func uploadToAzure(_ fileName: String, fileData: Data, sasToken: String, originalName: String, postId: String) {
-        let urlString = "\(STORAGE_URL)?\(sasToken)"
+        let urlString = "\(STORAGE_URL)\(fileName)?\(sasToken)"
         guard let url = URL(string: urlString) else { return }
         
-        var request = URLRequest(url: url.appendingPathComponent(fileName))
+        var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         
@@ -82,7 +85,7 @@ import SDWebImageWebPCoder
                 print("Error uploading to Azure: \(error.localizedDescription)")
                 self.showNotification(title: "Upload Error", content: "Failed to upload \(originalName)")
             } else {
-                self.commitUpload(postId: postId, fileUrl: "\(STORAGE_URL)/\(fileName)", originalName: originalName, mimeType: "application/octet-stream")
+                self.commitUpload(postId: postId, fileUrl: "\(STORAGE_URL)\(fileName)", originalName: originalName, mimeType: "application/octet-stream")
                 self.showNotification(title: "Upload Complete", content: "File \(originalName) uploaded successfully.")
             }
         }
@@ -116,20 +119,15 @@ import SDWebImageWebPCoder
         }
     }
 
-    private func convertImageToWebP(_ image: UIImage) -> Data? {
-        let coder = SDImageWebPCoder.shared
-        return coder.encode(image)
-    }
-
-    private func generateThumbnail(_ videoURL: URL) -> Data? {
-        let asset = AVAsset(url: videoURL)
+    private func generateThumbnail(from url: URL) -> Data? {
+        let asset = AVAsset(url: url)
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
         
         do {
             let thumbnailImage = try imageGenerator.copyCGImage(at: CMTime.zero, actualTime: nil)
             let image = UIImage(cgImage: thumbnailImage)
-            return convertImageToWebP(image)
+            return image.pngData()
         } catch {
             print("Error generating thumbnail: \(error.localizedDescription)")
             return nil
